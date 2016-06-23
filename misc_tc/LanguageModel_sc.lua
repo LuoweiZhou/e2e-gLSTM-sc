@@ -466,7 +466,7 @@ function layer:updateGradInput(input, gradOutput)
       dimage = self.softmax:backward(softmax_in,dimage)
       dimg_text = self.eltwise:backward({input[1],text_condition},dimage)
 
-      self.lookup_tables_tc[t]:backward(text_condition, dimg_text[2])
+      self.lookup_tables_tc[t]:backward(it_s, dimg_text[2])
 
       if t == self.tmax then
 	 dimgs = dimg_text[1]
