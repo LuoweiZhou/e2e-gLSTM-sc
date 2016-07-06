@@ -174,10 +174,10 @@ function layer:sample(imgs, opt)
       lookup_table_in[t] = it
       concat_temp = self.lookup_table:forward(it)
 
-      local lookup_table_to_tensor = torch.Tensor(batch_size, t-1)
+      local lookup_table_to_tensor = torch.CudaTensor(batch_size, t-1)
       for j = 2,t do concat_2 = lookup_table_to_tensor:sub(1,batch_size,j-1,j-1):copy(lookup_table_in[j]) end
       local lookup_table_out = self.lookup_table_tc:forward(lookup_table_to_tensor)     
-      text_condition = torch.Tensor(batch_size,lookup_table_out:size(3))
+      text_condition = torch.CudaTensor(batch_size,lookup_table_out:size(3))
       for j = 1,batch_size do text_condition[j] = lookup_table_out[j]:mean(1) end
 
       image_temp = self.eltwise:forward({imgs,text_condition})
@@ -316,10 +316,10 @@ function layer:sample_beam(imgs, opt)
         lookup_table_in[t] = it
      	concat_temp = self.lookup_table:forward(it)
 
-        local lookup_table_to_tensor = torch.Tensor(batch_size, t-1)
+        local lookup_table_to_tensor = torch.CudaTensor(batch_size, t-1)
         for j = 2,t do concat_2 = lookup_table_to_tensor:sub(1,batch_size,j-1,j-1):copy(lookup_table_in[j]) end
         local lookup_table_out = self.lookup_table_tc:forward(lookup_table_to_tensor)     
-        text_condition = torch.Tensor(batch_size,lookup_table_out:size(3))
+        text_condition = torch.CudaTensor(batch_size,lookup_table_out:size(3))
         for j = 1,batch_size do text_condition[j] = lookup_table_out[j]:mean(1) end
 
         image_temp = self.eltwise:forward({imgk,text_condition})
@@ -414,10 +414,10 @@ function layer:updateOutput(input)
         self.lookup_tables_inputs[t] = it
         concat_temp = self.lookup_tables[t]:forward(it)
 
-        local lookup_table_to_tensor = torch.Tensor(batch_size, t-1)
+        local lookup_table_to_tensor = torch.CudaTensor(batch_size, t-1)
         for j = 2,t do concat_2 = lookup_table_to_tensor:sub(1,batch_size,j-1,j-1):copy(self.lookup_tables_inputs[j]) end
         local lookup_table_out = self.lookup_tables_tc[t]:forward(lookup_table_to_tensor)     
-        text_condition = torch.Tensor(batch_size,lookup_table_out:size(3))
+        text_condition = torch.CudaTensor(batch_size,lookup_table_out:size(3))
         for j = 1,batch_size do text_condition[j] = lookup_table_out[j]:mean(1) end
 
         image_temp = self.eltwise:forward({imgs,text_condition})
@@ -474,10 +474,11 @@ function layer:updateGradInput(input, gradOutput)
       
       self.lookup_tables[t]:backward(it, dtext)
       
-      local lookup_table_to_tensor = torch.Tensor(batch_size, t-1)
+      local batch_size = it:size(1) 
+      local lookup_table_to_tensor = torch.CudaTensor(batch_size, t-1)
       for j = 2,t do concat_2 = lookup_table_to_tensor:sub(1,batch_size,j-1,j-1):copy(self.lookup_tables_inputs[j]) end
       local lookup_table_out = self.lookup_tables_tc[t]:forward(lookup_table_to_tensor)     
-      text_condition = torch.Tensor(batch_size,lookup_table_out:size(3))
+      text_condition = torch.CudaTensor(batch_size,lookup_table_out:size(3))
       for j = 1,batch_size do text_condition[j] = lookup_table_out[j]:mean(1) end
 
       local softmax_in = self.eltwise:forward({input[1],text_condition})
@@ -485,8 +486,9 @@ function layer:updateGradInput(input, gradOutput)
       dimage = self.softmax:backward(softmax_in,dimage)
       dimg_text = self.eltwise:backward({input[1],text_condition},dimage)
 
-      local dlookup_table_out = torch.Tensor(batch_size, t-1, dimg_text[2]:size(2))
-      for j = 1,batch_size do dlookup_table_out[j] = torch.expand(dimg_text[2][j],t-1,dimg_text[2]:size(2))
+      local dlookup_table_out = torch.CudaTensor(batch_size, t-1, dimg_text[2]:size(2))
+     
+      for j = 1,batch_size do dlookup_table_out[j] = torch.expand(dimg_text[2][j]:resize(1,dimg_text[2]:size(2)),t-1,dimg_text[2]:size(2)) end
       self.lookup_tables_tc[t]:backward(lookup_table_to_tensor, dlookup_table_out)
 
       if t == self.tmax then
