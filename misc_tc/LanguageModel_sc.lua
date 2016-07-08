@@ -316,11 +316,12 @@ function layer:sample_beam(imgs, opt)
         lookup_table_in[t] = it
      	concat_temp = self.lookup_table:forward(it)
 
-        local lookup_table_to_tensor = torch.CudaTensor(batch_size, t-1)
-        for j = 2,t do lookup_table_to_tensor:sub(1,batch_size,j-1,j-1):copy(lookup_table_in[j]) end
+        local row_size = it:size(1)
+        local lookup_table_to_tensor = torch.CudaTensor(row_size, t-1)
+        for j = 2,t do lookup_table_to_tensor:sub(1,row_size,j-1,j-1):copy(lookup_table_in[j]) end
         local lookup_table_out = self.lookup_table_tc:forward(lookup_table_to_tensor)     
-        text_condition = torch.CudaTensor(batch_size,lookup_table_out:size(3))
-        for j = 1,batch_size do text_condition[j] = lookup_table_out[j]:mean(1) end
+        text_condition = torch.CudaTensor(row_size,lookup_table_out:size(3))
+        for j = 1,row_size do text_condition[j] = lookup_table_out[j]:mean(1) end
 
         image_temp = self.eltwise:forward({imgk,text_condition})
         image_temp = self.softmax:forward(image_temp)
