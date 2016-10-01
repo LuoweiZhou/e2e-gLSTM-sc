@@ -7,7 +7,7 @@ require 'loadcaffe'
 local utils = require 'misc.utils'
 require 'misc.DataLoader'
 require 'misc.DataLoaderRaw'
-require 'misc_new.LanguageModel_lstm2'
+require 'misc_new.LanguageModel'
 local net_utils = require 'misc.net_utils'
 
 -------------------------------------------------------------------------------
