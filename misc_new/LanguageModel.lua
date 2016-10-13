@@ -377,7 +377,7 @@ end
 gradOutput is an (D+2)xNx(M+1) Tensor.
 --]]
 function layer:updateGradInput(input, gradOutput)
-  local dimgs -- grad on input images
+  local dimgs = torch.Tensor(input[1]:size()):type(input[1]:type()):zero() -- grad on input images
 
   -- go backwards and lets compute gradients
   local dstate = {[self.tmax] = self.init_state} -- this works when init_state is all zeros
@@ -401,7 +401,7 @@ function layer:updateGradInput(input, gradOutput)
       local dtext = torch.Tensor(dxt:size()[1],dxt:size()[2]/2):copy(dxt:sub(1,dxt:size()[1],1,dxt:size()[2]/2)):type(dxt:type())
       self.lookup_tables[t]:backward(it, dtext) -- backprop into lookup table.
       if t == self.tmax then
-	 dimgs = dxt:sub(1,dxt:size()[1],dxt:size()[2]/2+1,dxt:size()[2])
+	 dimgs:add(dxt:sub(1,dxt:size()[1],dxt:size()[2]/2+1,dxt:size()[2]))
       else
 	 dimgs:add(dxt:sub(1,dxt:size()[1],dxt:size()[2]/2+1,dxt:size()[2]))
       end
