@@ -7,10 +7,8 @@ require 'loadcaffe'
 -- local imports
 local utils = require 'misc.utils'
 require 'misc.DataLoader'
-require 'misc_tc.LanguageModel_sc'
 local net_utils = require 'misc.net_utils'
 require 'misc.optim_updates'
--- require 'misc.SpatialCrossMapLRN'
 
 -------------------------------------------------------------------------------
 -- Input arguments and options
@@ -66,6 +64,7 @@ cmd:option('-backend', 'cudnn', 'nn|cudnn')
 cmd:option('-id', '', 'an id identifying this run/job. used in cross-val and appended when writing progress files')
 cmd:option('-seed', 123, 'random number generator seed to use')
 cmd:option('-gpuid', 0, 'which gpu to use. -1 = use CPU')
+cmd:option('-language_model', 'misc_tc.LanguageModel_sc', 'choose which language model to use')
 
 cmd:text()
 
@@ -75,6 +74,8 @@ cmd:text()
 local opt = cmd:parse(arg)
 torch.manualSeed(opt.seed)
 torch.setdefaulttensortype('torch.FloatTensor') -- for CPU
+
+require(opt.language_model)
 
 if opt.gpuid >= 0 then
   require 'cutorch'
