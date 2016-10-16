@@ -20,6 +20,7 @@ function layer:__init(opt)
   -- options for Language Model
   self.seq_length = utils.getopt(opt, 'seq_length')
   -- create the core lstm network. note +1 for both the START and END tokens
+  -- we concatenate the input x with the guidance g, hence 2*input_encoding_size
   self.core = LSTM.lstm(2*self.input_encoding_size, self.vocab_size + 1, self.rnn_size, self.num_layers, dropout)
   self.lookup_table = nn.LookupTable(self.vocab_size + 1, self.input_encoding_size)
   self:_createInitState(1) -- will be lazily resized later during forward passes
@@ -112,15 +113,13 @@ function layer:sample(imgs, opt)
   for t=1,self.seq_length+2 do
 
     local xt=torch.Tensor(imgs:size()[1],2*imgs:size()[2]):type(state[1]:type()), it, sampleLogprobs, concat_temp
-    -- local xt=torch.Tensor(imgs:size()[1],2*imgs:size()[2]), it, sampleLogprobs, concat_temp
     if t == 1 then
-      -- feed in the images
-      -- should use CudaTensor instead of Tensor!!!
+      -- feed in the images twice, one for input, the other one for guidance
       xt:sub(1,imgs:size()[1],1,imgs:size()[2]):copy(imgs)
       xt:sub(1,imgs:size()[1],imgs:size()[2]+1,2*imgs:size()[2]):copy(imgs)
 
     elseif t == 2 then
-      -- feed in the start tokens
+      -- feed in the start tokens and the guidance
       it = torch.LongTensor(batch_size):fill(self.vocab_size+1)
       concat_temp = self.lookup_table:forward(it)
       xt:sub(1,imgs:size()[1],1,imgs:size()[2]):copy(concat_temp)
@@ -197,13 +196,12 @@ function layer:sample_beam(imgs, opt)
 
     for t=1,self.seq_length+2 do
       local xt=torch.Tensor(imgk:size()[1],2*imgk:size()[2]):type(self.init_state[1]:type()), it, sampleLogprobs, concat_temp, new_state
-      -- local xt=torch.Tensor(imgk:size()[1],2*imgk:size()[2]), concat_temp, new_state
       if t == 1 then
         -- feed in the images
         xt:sub(1,imgk:size()[1],1,imgk:size()[2]):copy(imgk)
         xt:sub(1,imgk:size()[1],imgk:size()[2]+1,2*imgk:size()[2]):copy(imgk)
       elseif t == 2 then
-        -- feed in the start tokens
+        -- feed in the start tokens and the guidance
         it = torch.LongTensor(beam_size):fill(self.vocab_size+1)
      	concat_temp = self.lookup_table:forward(it)
       	xt:sub(1,imgk:size()[1],1,imgk:size()[2]):copy(concat_temp)
@@ -320,13 +318,12 @@ function layer:updateOutput(input)
 
     local can_skip = false
     local xt=torch.Tensor(imgs:size()[1],2*imgs:size()[2]):type(self.state[0][1]:type()), concat_temp
-    -- local xt=torch.Tensor(imgs:size()[1],2*imgs:size()[2]), concat_temp
     if t == 1 then
       -- feed in the images
       xt:sub(1,imgs:size()[1],1,imgs:size()[2]):copy(imgs)
       xt:sub(1,imgs:size()[1],imgs:size()[2]+1,2*imgs:size()[2]):copy(imgs)
     elseif t == 2 then
-      -- feed in the start tokens
+      -- feed in the start tokens and the guidance
       local it = torch.LongTensor(batch_size):fill(self.vocab_size+1)
       self.lookup_tables_inputs[t] = it
       concat_temp = self.lookup_tables[t]:forward(it)
@@ -394,8 +391,9 @@ function layer:updateGradInput(input, gradOutput)
     
     -- continue backprop of xt
     if t == 1 then
+      -- need to backprop error twice
       dimgs:add(dxt:sub(1,dxt:size()[1],1,dxt:size()[2]/2))
-      dimgs:add(dxt:sub(1,dxt:size()[1],dxt:size()[2]/2+1,dxt:size()[2])) -- should backprop two parts
+      dimgs:add(dxt:sub(1,dxt:size()[1],dxt:size()[2]/2+1,dxt:size()[2]))
     else
       local it = self.lookup_tables_inputs[t]
       local dtext = torch.Tensor(dxt:size()[1],dxt:size()[2]/2):copy(dxt:sub(1,dxt:size()[1],1,dxt:size()[2]/2)):type(dxt:type())
