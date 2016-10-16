@@ -29,7 +29,7 @@ function layer:__init(opt)
   -- element-wise multiplication
   self.eltwise = nn.CMulTable()
   -- transfer function/nonlinear function
-  self.transfer_fun = nn.SoftMax()
+  self.softmax = nn.SoftMax()
   self:_createInitState(1) -- will be lazily resized later during forward passes
 end
 
@@ -41,7 +41,7 @@ function layer:createTC()
   -- element-wise multiplication
   self.eltwise = nn.CMulTable()
   -- transfer function/nonlinear function
-  self.transfer_fun = nn.SoftMax()
+  self.softmax = nn.SoftMax()
 end
 
 function layer:_createInitState(batch_size)
@@ -153,7 +153,7 @@ function layer:sample(imgs, opt)
       -- text-conditional image embedding
       text_condition = self.lookup_table_tc:forward(it)
       image_temp = self.eltwise:forward({imgs,text_condition})
-      image_temp = self.transfer_fun:forward(image_temp)
+      image_temp = self.softmax:forward(image_temp)
 
       -- concatenate the textual feature and the guidance
       xt:sub(1,imgs:size()[1],1,imgs:size()[2]):copy(concat_temp)
@@ -187,7 +187,7 @@ function layer:sample(imgs, opt)
       text_condition = torch.Tensor(batch_size,lookup_table_out:size(3)):type(state[1]:type())
       for j = 1,batch_size do text_condition[j] = lookup_table_out[j]:mean(1) end      
       image_temp = self.eltwise:forward({imgs,text_condition})
-      image_temp = self.transfer_fun:forward(image_temp)
+      image_temp = self.softmax:forward(image_temp)
 
       -- concatenate the textual feature and the guidance
       xt:sub(1,imgs:size()[1],1,imgs:size()[2]):copy(concat_temp)
@@ -257,7 +257,7 @@ function layer:sample_beam(imgs, opt)
         -- text-conditional image embedding
         text_condition = self.lookup_table_tc:forward(it)
         image_temp = self.eltwise:forward({imgk,text_condition})
-        image_temp = self.transfer_fun:forward(image_temp)
+        image_temp = self.softmax:forward(image_temp)
 
         -- concatenate the textual feature and the guidance
       	xt:sub(1,imgk:size()[1],1,imgk:size()[2]):copy(concat_temp)
@@ -333,7 +333,7 @@ function layer:sample_beam(imgs, opt)
         text_condition = torch.Tensor(row_size,lookup_table_out:size(3)):type(self.init_state[1]:type())
         for j = 1,row_size do text_condition[j] = lookup_table_out[j]:mean(1) end
         image_temp = self.eltwise:forward({imgk,text_condition})
-        image_temp = self.transfer_fun:forward(image_temp)
+        image_temp = self.softmax:forward(image_temp)
 
         -- concatenate the textual feature and the guidance
       	xt:sub(1,imgk:size()[1],1,imgk:size()[2]):copy(concat_temp)
@@ -400,7 +400,7 @@ function layer:updateOutput(input)
       -- text-conditional image embedding
       text_condition = self.lookup_tables_tc[t]:forward(it)
       image_temp = self.eltwise:forward({imgs,text_condition})
-      image_temp = self.transfer_fun:forward(image_temp)
+      image_temp = self.softmax:forward(image_temp)
 
       -- concatenate the textual feature and the guidance
       xt:sub(1,imgs:size()[1],1,imgs:size()[2]):copy(concat_temp)
@@ -434,7 +434,7 @@ function layer:updateOutput(input)
         text_condition = torch.Tensor(batch_size,lookup_table_out:size(3)):type(self.state[0][1]:type())
         for j = 1,batch_size do text_condition[j] = lookup_table_out[j]:mean(1) end
         image_temp = self.eltwise:forward({imgs,text_condition})
-        image_temp = self.transfer_fun:forward(image_temp)
+        image_temp = self.softmax:forward(image_temp)
 
         -- concatenate the textual feature and the guidance
         xt:sub(1,imgs:size()[1],1,imgs:size()[2]):copy(concat_temp)
@@ -499,7 +499,7 @@ function layer:updateGradInput(input, gradOutput)
       local softmax_in = self.eltwise:forward({input[1],text_condition})
 
       -- backprop through the transfer function and element wise multiplication operation
-      dimage = self.transfer_fun:backward(softmax_in,dimage)
+      dimage = self.softmax:backward(softmax_in,dimage)
       dimg_text = self.eltwise:backward({input[1],text_condition},dimage)
 
       -- backprop through the text-condional embedding matrix

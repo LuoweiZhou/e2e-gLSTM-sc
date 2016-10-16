@@ -104,7 +104,7 @@ if string.len(opt.start_from) > 0 then
   local lm_modules = protos.lm:getModulesList()
 
   -- initial the weights of text_conditional embedding if not exist
-  if protos.lm.lookup_table_tc == nil or protos.lm.eltwise == nil then
+  if protos.lm.lookup_table_tc == nil then
       protos.lm:createTC()
   end
 
