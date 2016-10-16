@@ -102,8 +102,10 @@ if string.len(opt.start_from) > 0 then
   net_utils.unsanitize_gradients(protos.cnn)
   local lm_modules = protos.lm:getModulesList()
 
-  -- add the initial weights of text_conditional embedding and element-wise multiplication
-  protos.lm:createTC()
+  -- initial the weights of text_conditional embedding if not exist
+  if protos.lm.lookup_table_tc == nil or protos.lm.eltwise == nil then
+      protos.lm:createTC()
+  end
 
   for k,v in pairs(lm_modules) do net_utils.unsanitize_gradients(v) end
   protos.crit = nn.LanguageModelCriterion() -- not in checkpoints, create manually
@@ -236,7 +238,7 @@ local iter = 0
 local function lossFun()
   protos.cnn:training()
   protos.lm:training()
-  grad_params:zero()
+  grad_params:zero()  -- remember to set gradients to zeros before training
   if opt.finetune_cnn_after >= 0 and iter >= opt.finetune_cnn_after then
     cnn_grad_params:zero()
   end
@@ -248,7 +250,7 @@ local function lossFun()
   local data = loader:getBatch{batch_size = opt.batch_size, split = 'train', seq_per_img = opt.seq_per_img}
   data.images = net_utils.prepro(data.images, true, opt.gpuid >= 0) -- preprocess in place, do data augmentation
   -- data.images: Nx3x224x224 
-  -- data.seq: LxM where L is sequence length upper bound, and M = N*seq_per_img
+  -- data.labels: LxM where L is sequence length upper bound, and M = N*seq_per_img
 
   -- forward the ConvNet on images (most work happens here)
   local feats = protos.cnn:forward(data.images)
