@@ -25,23 +25,26 @@ function layer:__init(opt)
   -- create the text-conditional lookup table
   self.lookup_table_tc = nn.LookupTable(self.vocab_size + 1, self.input_encoding_size)
   -- here, we initialize the weights with all ones
-  self.lookup_table_tc.weight = torch.Tensor(self.lookup_table_tc.weight:size()):fill(1.0)
+  -- here, we initialize the weights with all ones and some random noise
+  local tc_noise = torch.Tensor():randn(self.lookup_table_tc.weight:size())*0.001
+  self.lookup_table_tc.weight = torch.Tensor(self.lookup_table_tc.weight:size()):fill(1.0)+tc_noise
   -- element-wise multiplication
   self.eltwise = nn.CMulTable()
   -- transfer function/nonlinear function
-  self.softmax = nn.SoftMax()
+  self.softmax = nn.ReLU()
   self:_createInitState(1) -- will be lazily resized later during forward passes
 end
 
 function layer:createTC()
   -- create the text-conditional lookup table
   self.lookup_table_tc = nn.LookupTable(self.vocab_size + 1, self.input_encoding_size)
-  -- here, we initialize the weights with all ones
-  self.lookup_table_tc.weight = torch.Tensor(self.lookup_table_tc.weight:size()):fill(1.0)
+  -- here, we initialize the weights with all ones and some random noise
+  local tc_noise = torch.Tensor():randn(self.lookup_table_tc.weight:size())*0.001
+  self.lookup_table_tc.weight = torch.Tensor(self.lookup_table_tc.weight:size()):fill(1.0)+tc_noise
   -- element-wise multiplication
   self.eltwise = nn.CMulTable()
   -- transfer function/nonlinear function
-  self.softmax = nn.SoftMax()
+  self.softmax = nn.ReLU()
 end
 
 function layer:_createInitState(batch_size)
