@@ -398,11 +398,7 @@ function layer:updateGradInput(input, gradOutput)
       local it = self.lookup_tables_inputs[t]
       local dtext = torch.Tensor(dxt:size()[1],dxt:size()[2]/2):copy(dxt:sub(1,dxt:size()[1],1,dxt:size()[2]/2)):type(dxt:type())
       self.lookup_tables[t]:backward(it, dtext) -- backprop into lookup table.
-      if t == self.tmax then
-	 dimgs:add(dxt:sub(1,dxt:size()[1],dxt:size()[2]/2+1,dxt:size()[2]))
-      else
-	 dimgs:add(dxt:sub(1,dxt:size()[1],dxt:size()[2]/2+1,dxt:size()[2]))
-      end
+      dimgs:add(dxt:sub(1,dxt:size()[1],dxt:size()[2]/2+1,dxt:size()[2]))
     end
   end
 

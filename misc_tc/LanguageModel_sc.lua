@@ -511,11 +511,7 @@ function layer:updateGradInput(input, gradOutput)
       self.lookup_tables_tc[t]:backward(lookup_table_to_tensor, dlookup_table_out)
 
       -- backprop to the image feature
-      if t == self.tmax then
-	 dimgs:add(dimg_text[1])
-      else
-	 dimgs:add(dimg_text[1])
-      end
+      dimgs:add(dimg_text[1])
     end
   end
 
