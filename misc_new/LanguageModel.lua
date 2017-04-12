@@ -112,9 +112,10 @@ function layer:sample(imgs, opt)
   local logprobs -- logprobs predicted in last time step
   for t=1,self.seq_length+2 do
 
-    local xt=torch.Tensor(imgs:size()[1],2*imgs:size()[2]):type(state[1]:type()), it, sampleLogprobs, concat_temp
+    local xt, it, sampleLogprobs, concat_temp
     if t == 1 then
       -- feed in the images twice, one for input, the other one for guidance
+      xt = torch.Tensor(imgs:size()[1],2*imgs:size()[2]):type(state[1]:type())
       xt:sub(1,imgs:size()[1],1,imgs:size()[2]):copy(imgs)
       xt:sub(1,imgs:size()[1],imgs:size()[2]+1,2*imgs:size()[2]):copy(imgs)
 
@@ -122,6 +123,7 @@ function layer:sample(imgs, opt)
       -- feed in the start tokens and the guidance
       it = torch.LongTensor(batch_size):fill(self.vocab_size+1)
       concat_temp = self.lookup_table:forward(it)
+      xt = torch.Tensor(imgs:size()[1],2*imgs:size()[2]):type(state[1]:type())
       xt:sub(1,imgs:size()[1],1,imgs:size()[2]):copy(concat_temp)
       xt:sub(1,imgs:size()[1],imgs:size()[2]+1,2*imgs:size()[2]):copy(imgs)
     else
@@ -144,6 +146,7 @@ function layer:sample(imgs, opt)
         it = it:view(-1):long() -- and flatten indices for downstream processing
       end
       concat_temp = self.lookup_table:forward(it)
+      xt = torch.Tensor(imgs:size()[1],2*imgs:size()[2]):type(state[1]:type())
       xt:sub(1,imgs:size()[1],1,imgs:size()[2]):copy(concat_temp)
       xt:sub(1,imgs:size()[1],imgs:size()[2]+1,2*imgs:size()[2]):copy(imgs)
     end
@@ -195,13 +198,16 @@ function layer:sample_beam(imgs, opt)
     local imgk = imgs[{ {k,k} }]:expand(beam_size, feat_dim) -- k'th image feature expanded out
 
     for t=1,self.seq_length+2 do
-      local xt=torch.Tensor(imgk:size()[1],2*imgk:size()[2]):type(self.init_state[1]:type()), it, sampleLogprobs, concat_temp, new_state
+--      local xt=torch.Tensor(imgk:size()[1],2*imgk:size()[2]):type(self.init_state[1]:type()), it, sampleLogprobs, concat_temp, new_state
+      local xt, it, sampleLogprobs, concat_temp, new_state
       if t == 1 then
         -- feed in the images
+        xt = torch.Tensor(imgk:size()[1],2*imgk:size()[2]):type(self.init_state[1]:type())
         xt:sub(1,imgk:size()[1],1,imgk:size()[2]):copy(imgk)
         xt:sub(1,imgk:size()[1],imgk:size()[2]+1,2*imgk:size()[2]):copy(imgk)
       elseif t == 2 then
         -- feed in the start tokens and the guidance
+        xt = torch.Tensor(imgk:size()[1],2*imgk:size()[2]):type(self.init_state[1]:type())
         it = torch.LongTensor(beam_size):fill(self.vocab_size+1)
      	concat_temp = self.lookup_table:forward(it)
       	xt:sub(1,imgk:size()[1],1,imgk:size()[2]):copy(concat_temp)
@@ -267,6 +273,7 @@ function layer:sample_beam(imgs, opt)
         -- encode as vectors
         it = beam_seq[t-2]
      	concat_temp = self.lookup_table:forward(it)
+        xt = torch.Tensor(imgk:size()[1],2*imgk:size()[2]):type(self.init_state[1]:type())
       	xt:sub(1,imgk:size()[1],1,imgk:size()[2]):copy(concat_temp)
       	xt:sub(1,imgk:size()[1],imgk:size()[2]+1,2*imgk:size()[2]):copy(imgk)
       end
@@ -317,9 +324,10 @@ function layer:updateOutput(input)
   for t=1,self.seq_length+2 do
 
     local can_skip = false
-    local xt=torch.Tensor(imgs:size()[1],2*imgs:size()[2]):type(self.state[0][1]:type()), concat_temp
+    local xt, concat_temp
     if t == 1 then
       -- feed in the images
+      xt = torch.Tensor(imgs:size()[1],2*imgs:size()[2]):type(self.state[0][1]:type())
       xt:sub(1,imgs:size()[1],1,imgs:size()[2]):copy(imgs)
       xt:sub(1,imgs:size()[1],imgs:size()[2]+1,2*imgs:size()[2]):copy(imgs)
     elseif t == 2 then
@@ -327,6 +335,7 @@ function layer:updateOutput(input)
       local it = torch.LongTensor(batch_size):fill(self.vocab_size+1)
       self.lookup_tables_inputs[t] = it
       concat_temp = self.lookup_tables[t]:forward(it)
+      xt = torch.Tensor(imgs:size()[1],2*imgs:size()[2]):type(self.state[0][1]:type())
       xt:sub(1,imgs:size()[1],1,imgs:size()[2]):copy(concat_temp)
       xt:sub(1,imgs:size()[1],imgs:size()[2]+1,2*imgs:size()[2]):copy(imgs)
     else
@@ -349,6 +358,7 @@ function layer:updateOutput(input)
       if not can_skip then
         self.lookup_tables_inputs[t] = it
         concat_temp = self.lookup_tables[t]:forward(it)
+        xt = torch.Tensor(imgs:size()[1],2*imgs:size()[2]):type(self.state[0][1]:type())
         xt:sub(1,imgs:size()[1],1,imgs:size()[2]):copy(concat_temp)
         xt:sub(1,imgs:size()[1],imgs:size()[2]+1,2*imgs:size()[2]):copy(imgs)
       end

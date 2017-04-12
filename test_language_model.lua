@@ -5,8 +5,8 @@ and that everything gradient checks.
 --]]
 
 require 'torch'
--- require 'misc_new.LanguageModel'
-require 'misc_tc.LanguageModel_sc'
+require 'misc_new.LanguageModel'
+-- require 'misc_tc.LanguageModel_sc'
 
 local gradcheck = require 'misc.gradcheck'
 
@@ -88,7 +88,7 @@ local function gradCheckLM()
   opt.rnn_size = 8
   opt.num_layers = 2
   opt.dropout = 0
-  opt.seq_length = 7
+  opt.seq_length = 50
   opt.batch_size = 6
   local lm = nn.LanguageModel(opt)
   local crit = nn.LanguageModelCriterion()
@@ -119,12 +119,12 @@ local function gradCheckLM()
 
   -- print(gradInput)
   -- print(gradInput_num)
-  -- local g = gradInput:view(-1)
-  -- local gn = gradInput_num:view(-1)
-  -- for i=1,g:nElement() do
-  --   local r = gradcheck.relative_error(g[i],gn[i])
-  --   print(i, g[i], gn[i], r)
-  -- end
+   local g = gradInput:view(-1)
+   local gn = gradInput_num:view(-1)
+   for i=1,g:nElement() do
+     local r = gradcheck.relative_error(g[i],gn[i])
+     print(i, g[i], gn[i], r)
+   end
 
   tester:assertTensorEq(gradInput, gradInput_num, 1e-4)
   tester:assertlt(gradcheck.relative_error(gradInput, gradInput_num, 1e-8), 1e-4)

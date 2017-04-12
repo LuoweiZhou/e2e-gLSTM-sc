@@ -7,7 +7,8 @@ require 'loadcaffe'
 -- local imports
 local utils = require 'misc.utils'
 require 'misc.DataLoader'
-require 'misc_new.LanguageModel'
+-- require 'misc_new.LanguageModel'
+require 'misc.LanguageModel'
 local net_utils = require 'misc.net_utils'
 require 'misc.optim_updates'
 -- require 'misc.SpatialCrossMapLRN'
@@ -26,6 +27,7 @@ cmd:option('-input_h5','coco/data.h5','path to the h5file containing the preproc
 cmd:option('-input_json','coco/data.json','path to the json file containing additional info and vocab')
 cmd:option('-cnn_proto','model/VGG_ILSVRC_16_layers_deploy.prototxt','path to CNN prototxt file in Caffe format. Note this MUST be a VGGNet-16 right now.')
 cmd:option('-cnn_model','model/VGG_ILSVRC_16_layers.caffemodel','path to CNN model file containing the weights, Caffe format. Note this MUST be a VGGNet-16 right now.')
+cmd:option('-cnn_model_t7','model/resnet-34.t7','path to CNN model t7 file containing the weights. can be directed read by torch')
 cmd:option('-start_from', '', 'path to a model checkpoint to initialize model weights from. Empty = don\'t')
 
 -- Model settings
@@ -52,7 +54,7 @@ cmd:option('-cnn_optim','adam','optimization to use for CNN')
 cmd:option('-cnn_optim_alpha',0.8,'alpha for momentum of CNN')
 cmd:option('-cnn_optim_beta',0.999,'alpha for momentum of CNN')
 cmd:option('-cnn_learning_rate',1e-5,'learning rate for the CNN')
-cmd:option('-cnn_weight_decay', 0, 'L2 weight decay just for the CNN')
+cmd:option('-cnn_weight_decay', 0.0001, 'L2 weight decay just for the CNN')
 
 -- Evaluation/Checkpointing
 cmd:option('-val_images_use', 3200, 'how many images to use when periodically evaluating the validation loss? (-1 = all)')
@@ -99,11 +101,14 @@ if string.len(opt.start_from) > 0 then
   print('initializing weights from ' .. opt.start_from)
   local loaded_checkpoint = torch.load(opt.start_from)
   protos = loaded_checkpoint.protos
-  net_utils.unsanitize_gradients(protos.cnn)
+  -- net_utils.unsanitize_gradients(protos.cnn)
   local lm_modules = protos.lm:getModulesList()
   for k,v in pairs(lm_modules) do net_utils.unsanitize_gradients(v) end
   protos.crit = nn.LanguageModelCriterion() -- not in checkpoints, create manually
   protos.expander = nn.FeatExpander(opt.seq_per_img) -- not in checkpoints, create manually
+
+  protos.lm.seq_length = 16
+
 else
   -- create protos from scratch
   -- intialize language model
@@ -121,6 +126,12 @@ else
   if opt.gpuid == -1 then cnn_backend = 'nn' end -- override to nn if gpu is disabled
   local cnn_raw = loadcaffe.load(opt.cnn_proto, opt.cnn_model, cnn_backend)
   protos.cnn = net_utils.build_cnn(cnn_raw, {encoding_size = opt.input_encoding_size, backend = cnn_backend})
+--  protos.cnn = torch.load(opt.cnn_model_t7)
+--  assert(torch.type(protos.cnn:get(#protos.cnn.modules)) == 'nn.Linear')
+--  protos.cnn:remove(#protos.cnn.modules)
+--  local lt = nn.Linear(2048, 1024)
+--  protos.cnn:add(lt)
+
   -- initialize a special FeatExpander module that "corrects" for the batch number discrepancy 
   -- where we have multiple captions per one image in a batch. This is done for efficiency
   -- because doing a CNN forward pass is expensive. We expand out the CNN features for each sentence
@@ -341,7 +352,7 @@ while true do
         -- include the protos (which have weights) and save to file
         local save_protos = {}
         save_protos.lm = thin_lm -- these are shared clones, and point to correct param storage
-        save_protos.cnn = thin_cnn
+        save_protos.cnn = protos.cnn
         checkpoint.protos = save_protos
         -- also include the vocabulary mapping so that we can use the checkpoint 
         -- alone to run on arbitrary images without the data loader

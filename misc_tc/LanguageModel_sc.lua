@@ -31,7 +31,7 @@ function layer:__init(opt)
   -- element-wise multiplication
   self.eltwise = nn.CMulTable()
   -- transfer function/nonlinear function
-  self.softmax = nn.ReLU()
+  self.softmax = nn.Tanh()
   self:_createInitState(1) -- will be lazily resized later during forward passes
 end
 
@@ -44,7 +44,7 @@ function layer:createTC()
   -- element-wise multiplication
   self.eltwise = nn.CMulTable()
   -- transfer function/nonlinear function
-  self.softmax = nn.ReLU()
+  self.softmax = nn.Tanh()
 end
 
 function layer:_createInitState(batch_size)
@@ -141,9 +141,10 @@ function layer:sample(imgs, opt)
   local lookup_table_in = {}
   for t=1,self.seq_length+2 do
 
-    local xt=torch.Tensor(imgs:size()[1],2*imgs:size()[2]):type(state[1]:type()), it, sampleLogprobs, concat_temp, text_condition, image_temp
+    local xt, it, sampleLogprobs, concat_temp, text_condition, image_temp
     if t == 1 then
       -- feed in the images
+      xt = torch.Tensor(imgs:size()[1],2*imgs:size()[2]):type(state[1]:type())
       xt:sub(1,imgs:size()[1],1,imgs:size()[2]):copy(imgs)
       xt:sub(1,imgs:size()[1],imgs:size()[2]+1,2*imgs:size()[2]):copy(imgs)
 
@@ -159,6 +160,7 @@ function layer:sample(imgs, opt)
       image_temp = self.softmax:forward(image_temp)
 
       -- concatenate the textual feature and the guidance
+      xt = torch.Tensor(imgs:size()[1],2*imgs:size()[2]):type(state[1]:type())
       xt:sub(1,imgs:size()[1],1,imgs:size()[2]):copy(concat_temp)
       xt:sub(1,imgs:size()[1],imgs:size()[2]+1,2*imgs:size()[2]):copy(image_temp)
     else
@@ -193,6 +195,7 @@ function layer:sample(imgs, opt)
       image_temp = self.softmax:forward(image_temp)
 
       -- concatenate the textual feature and the guidance
+      xt = torch.Tensor(imgs:size()[1],2*imgs:size()[2]):type(state[1]:type())
       xt:sub(1,imgs:size()[1],1,imgs:size()[2]):copy(concat_temp)
       xt:sub(1,imgs:size()[1],imgs:size()[2]+1,2*imgs:size()[2]):copy(image_temp)
     end
@@ -389,7 +392,7 @@ function layer:updateOutput(input)
   for t=1,self.seq_length+2 do
 
     local can_skip = false
-    local xt=torch.Tensor(imgs:size()[1],2*imgs:size()[2]):type(self.state[0][1]:type()), concat_temp, text_condition, image_temp
+    local xt=torch.Tensor(imgs:size()[1],2*imgs:size()[2]):type(self.state[0][1]:type()), concat_temp, text_condition
     if t == 1 then
       -- feed in the images
       xt:sub(1,imgs:size()[1],1,imgs:size()[2]):copy(imgs)
@@ -402,8 +405,8 @@ function layer:updateOutput(input)
 
       -- text-conditional image embedding
       text_condition = self.lookup_tables_tc[t]:forward(it)
-      image_temp = self.eltwise:forward({imgs,text_condition})
-      image_temp = self.softmax:forward(image_temp)
+      local image_temp1 = self.eltwise:forward({imgs,text_condition})
+      local image_temp = self.softmax:forward(image_temp1)
 
       -- concatenate the textual feature and the guidance
       xt:sub(1,imgs:size()[1],1,imgs:size()[2]):copy(concat_temp)
@@ -436,8 +439,8 @@ function layer:updateOutput(input)
         local lookup_table_out = self.lookup_tables_tc[t]:forward(lookup_table_to_tensor)     
         text_condition = torch.Tensor(batch_size,lookup_table_out:size(3)):type(self.state[0][1]:type())
         for j = 1,batch_size do text_condition[j] = lookup_table_out[j]:mean(1) end
-        image_temp = self.eltwise:forward({imgs,text_condition})
-        image_temp = self.softmax:forward(image_temp)
+        local image_temp1 = self.eltwise:forward({imgs,text_condition})
+        local image_temp = self.softmax:forward(image_temp1)
 
         -- concatenate the textual feature and the guidance
         xt:sub(1,imgs:size()[1],1,imgs:size()[2]):copy(concat_temp)
@@ -502,8 +505,8 @@ function layer:updateGradInput(input, gradOutput)
       local softmax_in = self.eltwise:forward({input[1],text_condition})
 
       -- backprop through the transfer function and element wise multiplication operation
-      dimage = self.softmax:backward(softmax_in,dimage)
-      dimg_text = self.eltwise:backward({input[1],text_condition},dimage)
+      local dimage1 = self.softmax:backward(softmax_in,dimage)
+      dimg_text = self.eltwise:backward({input[1],text_condition},dimage1)
 
       -- backprop through the text-condional embedding matrix
       local dlookup_table_out = torch.Tensor(batch_size, t-1, dimg_text[2]:size(2)):type(dxt:type())

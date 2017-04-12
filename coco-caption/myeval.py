@@ -12,8 +12,9 @@ import sys
 
 input_json = sys.argv[1]
 
-
+# annFile = 'annotations/captions_trainval2014.json'
 annFile = 'annotations/captions_val2014.json'
+# annFile = '/z/home/luozhou/subsystem/e2e-gLSTM-sc/coco/flickr30k_caption.json'
 coco = COCO(annFile)
 valids = coco.getImgIds()
 
@@ -22,6 +23,7 @@ preds = checkpoint['val_predictions']
 
 # filter results to only those in MSCOCO validation set (will be about a third)
 preds_filt = [p for p in preds if p['image_id'] in valids]
+# preds_filt = preds
 print 'using %d/%d predictions' % (len(preds_filt), len(preds))
 json.dump(preds_filt, open('tmp.json', 'w')) # serialize to temporary json file. Sigh, COCO API...
 
