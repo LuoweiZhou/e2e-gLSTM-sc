@@ -7,8 +7,8 @@ require 'loadcaffe'
 -- local imports
 local utils = require 'misc.utils'
 require 'misc.DataLoader'
--- require 'misc_new.LanguageModel'
-require 'misc.LanguageModel'
+require 'misc_new.LanguageModel'
+-- require 'misc.LanguageModel'
 local net_utils = require 'misc.net_utils'
 require 'misc.optim_updates'
 -- require 'misc.SpatialCrossMapLRN'
@@ -101,14 +101,11 @@ if string.len(opt.start_from) > 0 then
   print('initializing weights from ' .. opt.start_from)
   local loaded_checkpoint = torch.load(opt.start_from)
   protos = loaded_checkpoint.protos
-  -- net_utils.unsanitize_gradients(protos.cnn)
+  net_utils.unsanitize_gradients(protos.cnn)
   local lm_modules = protos.lm:getModulesList()
   for k,v in pairs(lm_modules) do net_utils.unsanitize_gradients(v) end
   protos.crit = nn.LanguageModelCriterion() -- not in checkpoints, create manually
   protos.expander = nn.FeatExpander(opt.seq_per_img) -- not in checkpoints, create manually
-
-  protos.lm.seq_length = 16
-
 else
   -- create protos from scratch
   -- intialize language model

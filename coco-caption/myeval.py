@@ -12,9 +12,7 @@ import sys
 
 input_json = sys.argv[1]
 
-# annFile = 'annotations/captions_trainval2014.json'
-annFile = 'annotations/captions_val2014.json'
-# annFile = '/z/home/luozhou/subsystem/e2e-gLSTM-sc/coco/flickr30k_caption.json'
+annFile = '/z/home/luozhou/subsystem/e2e-gLSTM-sc/coco/flickr30k_caption.json'
 coco = COCO(annFile)
 valids = coco.getImgIds()
 

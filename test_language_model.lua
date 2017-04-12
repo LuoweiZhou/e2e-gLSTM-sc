@@ -119,12 +119,12 @@ local function gradCheckLM()
 
   -- print(gradInput)
   -- print(gradInput_num)
-   local g = gradInput:view(-1)
-   local gn = gradInput_num:view(-1)
-   for i=1,g:nElement() do
-     local r = gradcheck.relative_error(g[i],gn[i])
-     print(i, g[i], gn[i], r)
-   end
+  -- local g = gradInput:view(-1)
+  -- local gn = gradInput_num:view(-1)
+  -- for i=1,g:nElement() do
+  --   local r = gradcheck.relative_error(g[i],gn[i])
+  --   print(i, g[i], gn[i], r)
+  -- end
 
   tester:assertTensorEq(gradInput, gradInput_num, 1e-4)
   tester:assertlt(gradcheck.relative_error(gradInput, gradInput_num, 1e-8), 1e-4)
