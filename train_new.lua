@@ -27,7 +27,7 @@ cmd:option('-input_h5','coco/data.h5','path to the h5file containing the preproc
 cmd:option('-input_json','coco/data.json','path to the json file containing additional info and vocab')
 cmd:option('-cnn_proto','model/VGG_ILSVRC_16_layers_deploy.prototxt','path to CNN prototxt file in Caffe format. Note this MUST be a VGGNet-16 right now.')
 cmd:option('-cnn_model','model/VGG_ILSVRC_16_layers.caffemodel','path to CNN model file containing the weights, Caffe format. Note this MUST be a VGGNet-16 right now.')
-cmd:option('-cnn_model_t7','model/resnet-34.t7','path to CNN model t7 file containing the weights. can be directed read by torch')
+cmd:option('-cnn_model_resnet', '', 'path to the ResNet model. If it is empty then load the vgg16 model.')
 cmd:option('-start_from', '', 'path to a model checkpoint to initialize model weights from. Empty = don\'t')
 
 -- Model settings
@@ -36,7 +36,7 @@ cmd:option('-input_encoding_size',512,'the encoding size of each token in the vo
 
 -- Optimization: General
 cmd:option('-max_iters', -1, 'max number of iterations to run for (-1 = run forever)')
-cmd:option('-batch_size',16,'what is the batch size in number of images per batch? (there will be x seq_per_img sentences)')
+cmd:option('-batch_size',8,'what is the batch size in number of images per batch? (there will be x seq_per_img sentences)')
 cmd:option('-grad_clip',0.1,'clip gradients at this value (note should be lower than usual 5 because we normalize grads by both batch and seq_length)')
 cmd:option('-drop_prob_lm', 0.5, 'strength of dropout in the Language Model RNN')
 cmd:option('-finetune_cnn_after', -1, 'After what iteration do we start finetuning the CNN? (-1 = disable; never finetune, 0 = finetune from start)')
@@ -121,14 +121,20 @@ else
   -- initialize the ConvNet
   local cnn_backend = opt.backend
   if opt.gpuid == -1 then cnn_backend = 'nn' end -- override to nn if gpu is disabled
-  local cnn_raw = loadcaffe.load(opt.cnn_proto, opt.cnn_model, cnn_backend)
-  protos.cnn = net_utils.build_cnn(cnn_raw, {encoding_size = opt.input_encoding_size, backend = cnn_backend})
---  protos.cnn = torch.load(opt.cnn_model_t7)
---  assert(torch.type(protos.cnn:get(#protos.cnn.modules)) == 'nn.Linear')
---  protos.cnn:remove(#protos.cnn.modules)
---  local lt = nn.Linear(2048, 1024)
---  protos.cnn:add(lt)
 
+  if string.len(opt.cnn_model_resnet) > 0 then
+    -- resnet, how many layers doesn't matter
+    protos.cnn = torch.load(opt.cnn_model_resnet)
+    assert(torch.type(protos.cnn:get(#protos.cnn.modules)) == 'nn.Linear')
+    local resnet_encoding = protos.cnn:get(#protos.cnn.modules).weight:size(2)
+    protos.cnn:remove(#protos.cnn.modules)
+    local lt = nn.Linear(resnet_encoding, opt.input_encoding_size)
+    protos.cnn:add(lt)
+  else
+    -- vgg16
+    local cnn_raw = loadcaffe.load(opt.cnn_proto, opt.cnn_model, cnn_backend)
+    protos.cnn = net_utils.build_cnn(cnn_raw, {encoding_size = opt.input_encoding_size, backend = cnn_backend})
+  end
   -- initialize a special FeatExpander module that "corrects" for the batch number discrepancy 
   -- where we have multiple captions per one image in a batch. This is done for efficiency
   -- because doing a CNN forward pass is expensive. We expand out the CNN features for each sentence
@@ -349,7 +355,7 @@ while true do
         -- include the protos (which have weights) and save to file
         local save_protos = {}
         save_protos.lm = thin_lm -- these are shared clones, and point to correct param storage
-        save_protos.cnn = protos.cnn
+        save_protos.cnn = thin_cnn
         checkpoint.protos = save_protos
         -- also include the vocabulary mapping so that we can use the checkpoint 
         -- alone to run on arbitrary images without the data loader

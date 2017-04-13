@@ -109,7 +109,7 @@ if string.len(opt.start_from) > 0 then
       protos.lm:createTC()
   end
 
---  torch.save('sc-tanh-wc.dat', protos.lm.lookup_table_tc.weight, 'ascii')
+  -- torch.save('sc-tanh-wc.dat', protos.lm.lookup_table_tc.weight, 'ascii')
   for k,v in pairs(lm_modules) do net_utils.unsanitize_gradients(v) end
   protos.crit = nn.LanguageModelCriterion() -- not in checkpoints, create manually
   protos.expander = nn.FeatExpander(opt.seq_per_img) -- not in checkpoints, create manually

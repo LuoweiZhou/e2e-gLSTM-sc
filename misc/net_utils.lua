@@ -141,6 +141,10 @@ function net_utils.sanitize_gradients(net)
       --print(m.bias:size())
       m.gradBias = nil
     end
+--    if m.gradInput and m.output then
+--      m.gradInput = nil
+--      m.output = nil
+--    end
   end
 end
 
@@ -148,15 +152,21 @@ function net_utils.unsanitize_gradients(net)
   local moduleList = net_utils.listModules(net)
   for k,m in ipairs(moduleList) do
     if m.weight and (not m.gradWeight) then
+      m.weight = m.weight:clone()
       m.gradWeight = m.weight:clone():zero()
       --print('unsanitized gradWeight in of size ' .. m.gradWeight:nElement())
       --print(m.weight:size())
     end
     if m.bias and (not m.gradBias) then
+      m.bias = m.bias:clone()
       m.gradBias = m.bias:clone():zero()
       --print('unsanitized gradWeight in of size ' .. m.gradBias:nElement())
       --print(m.bias:size())
     end
+--    if not m.output or not m.gradInput then
+--      m.output = torch.Tensor()
+--      m.gradInput = torch.Tensor()
+--    end
   end
 end
 
