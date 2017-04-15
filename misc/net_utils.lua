@@ -141,6 +141,7 @@ function net_utils.sanitize_gradients(net)
       --print(m.bias:size())
       m.gradBias = nil
     end
+-- This can be done by clearState()
 --    if m.gradInput and m.output then
 --      m.gradInput = nil
 --      m.output = nil
@@ -163,6 +164,7 @@ function net_utils.unsanitize_gradients(net)
       --print('unsanitized gradWeight in of size ' .. m.gradBias:nElement())
       --print(m.bias:size())
     end
+-- This can be done by clearState()
 --    if not m.output or not m.gradInput then
 --      m.output = torch.Tensor()
 --      m.gradInput = torch.Tensor()
@@ -211,6 +213,24 @@ function net_utils.language_eval(predictions, id)
   os.execute('./misc/call_python_caption_eval.sh val' .. id .. '.json') -- i'm dying over here
   local result_struct = utils.read_json('coco-caption/val' .. id .. '.json_out.json') -- god forgive me
   return result_struct
+end
+
+-- deep copy resnet
+-- https://github.com/jiasenlu/AdaptiveAttention/blob/master/misc/net_utils.lua
+function net_utils.deepCopy(tbl)
+   -- creates a copy of a network with new modules and the same tensors
+   local copy = {}
+   for k, v in pairs(tbl) do
+      if type(v) == 'table' then
+         copy[k] = net_utils.deepCopy(v)
+      else
+         copy[k] = v
+      end
+   end
+   if torch.typename(tbl) then
+      torch.setmetatable(copy, torch.typename(tbl))
+   end
+   return copy
 end
 
 return net_utils

@@ -355,7 +355,7 @@ while true do
         -- include the protos (which have weights) and save to file
         local save_protos = {}
         save_protos.lm = thin_lm -- these are shared clones, and point to correct param storage
-        save_protos.cnn = thin_cnn
+        save_protos.cnn = net_utils.deepCopy(protos.cnn):float():clearState()
         checkpoint.protos = save_protos
         -- also include the vocabulary mapping so that we can use the checkpoint 
         -- alone to run on arbitrary images without the data loader
