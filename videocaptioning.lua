@@ -6,7 +6,7 @@ require 'nngraph'
 local utils = require 'misc.utils'
 require 'misc.DataLoader'
 require 'misc.DataLoaderRaw'
-require 'misc.LanguageModel'
+require 'misc_new.LanguageModel' -- or sc depending on which one you are using
 local net_utils = require 'misc.net_utils'
 
 local cv = require 'cv'
